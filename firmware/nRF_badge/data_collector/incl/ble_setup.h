@@ -244,7 +244,7 @@ bool BLEwrite(uint8_t* data, uint16_t len);
  */
 bool BLEwriteChar(uint8_t dataChar);
 
-
+uint32_t startScan();
 
 
 #endif //BLE_SETUP_H

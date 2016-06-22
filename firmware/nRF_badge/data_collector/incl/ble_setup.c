@@ -9,7 +9,7 @@ static ble_nus_t                        m_nus;      //Struct for Nordic UART Ser
 
 volatile bool isConnected = false;
 volatile bool isAdvertising = false;
-volatile bool isScanning = false;
+//volatile bool isScanning = false;
 
 ble_uuid_t m_adv_uuids[] = {{BLE_UUID_BATTERY_SERVICE, BLE_UUID_TYPE_BLE},        // Universally unique service identifiers.
                             {BLE_UUID_NUS_SERVICE,     BLE_UUID_TYPE_BLE}};  
@@ -115,15 +115,67 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
             BLEonDisconnect();
             break;
         case BLE_GAP_EVT_ADV_REPORT:  //On receipt of a response to an advertising request (during a scan)
+            ;
+            unsigned char dataLength = p_ble_evt->evt.gap_evt.params.adv_report.dlen;
+            unsigned char* data = (unsigned char*)p_ble_evt->evt.gap_evt.params.adv_report.data;
+            unsigned char index = 0;
+            
+            //unsigned char* name = NULL;
+            
+            bool isBadge = false;
+            
+            while(index < dataLength)
+            {
+                unsigned char fieldLen = data[index];
+                index++;
+                unsigned char fieldType = data[index];
+                index++;
+                if(fieldType == BLE_GAP_AD_TYPE_SHORT_LOCAL_NAME
+                    || fieldType == BLE_GAP_AD_TYPE_COMPLETE_LOCAL_NAME)
+                {
+                    if(memcmp(&data[index],(const uint8_t *)DEVICE_NAME,strlen(DEVICE_NAME)) == 0)
+                    {
+                        isBadge = true;
+                        //name = &data[index];
+                        break;  // don't need any more adv data for now.
+                    }
+                }
+                else
+                {
+                    index += fieldLen;
+                }    
+            }
+            
+            unsigned char* addr = p_ble_evt->evt.gap_evt.params.adv_report.peer_addr.addr;
+            
+            if(isBadge)
+            {
+                debug_log("%.2X:%.2X:%.2X:%.2X:%.2X:%.2X, %d\r\n",   addr[5],addr[4],addr[3],
+                                                                            addr[2],addr[1],addr[0],
+                                                                            p_ble_evt->evt.gap_evt.params.adv_report.rssi);
+            }
+            else
+            {
+                /*debug_log("Non-badge, %.2X:%.2X:%.2X:%.2X:%.2X:%.2X, %d\r\n",   addr[5],addr[4],addr[3],
+                                                                                addr[2],addr[1],addr[0],
+                                                                                p_ble_evt->evt.gap_evt.params.adv_report.rssi);*/
+            }
+                
             //BLEonAdvReport(p_ble_evt->evt.gap_evt.params.adv_report.peer_addr.addr,
             //                p_ble_evt->evt.gap_evt.params.adv_report.rssi);
             break;
         
         case BLE_GAP_EVT_TIMEOUT:
-            /*if(p_ble_evt->evt.gap_evt.params.timeout.src == BLE_GAP_TIMEOUT_SRC_SCAN)  {
-                BLEonScanTimeout();
-                debug_log("Scan ended\r\n");
-            }*/
+            if(p_ble_evt->evt.gap_evt.params.timeout.src == BLE_GAP_TIMEOUT_SRC_SCAN)  {
+                //BLEonScanTimeout();
+                //debug_log("Scan ended\r\n");
+                uint32_t result = startScan();
+                if(result != NRF_SUCCESS)
+                {
+                    debug_log("Error restarting scans?\r\n");
+                    while(1);
+                }
+            }
             /*else  {
                 debug_log("Timeout.  src=%d\r\n", p_ble_evt->evt.gap_evt.params.timeout.src);
             }*/
